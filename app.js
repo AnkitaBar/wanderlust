@@ -7,6 +7,7 @@ const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate"); // create more template
 const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressError.js");
+const { listingSchema } = require("./schema.js");
 
 
 
@@ -35,6 +36,17 @@ app.get("/",(req,res)=>{
     res.send("Hi, I am root");
 });
 
+const validateListing = (req,res,next) =>{
+  let { error } = listingSchema.validate(req.body);
+  
+  if(error){
+    let errMsg = error.details.map((el) => el.message).join(",");
+    throw new ExpressError(400,errMsg);
+  }else{
+    next();
+  }
+}
+
 //Index Route
 app.get("/listings", async (req, res) => {
     const allListings = await Listing.find({});
@@ -57,10 +69,9 @@ app.get("/listings/:id", async (req, res) => {
 /////// Create route 
 app.post(
   "/listings",
+  validateListing,
 wrapAsync(async(req,res) =>{
-    if(!req.body.listing){
-      throw new ExpressError(400, "send valid data for listing");
-    }
+
 
     const newListing = new Listing (req.body.listing) ;
     await newListing.save();
