@@ -8,6 +8,8 @@ const ejsMate = require("ejs-mate"); // create more template
 const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressError.js");
 const { listingSchema } = require("./schema.js");
+const Review = require("./models/review.js");
+
 
 
 
@@ -62,7 +64,7 @@ app.get("/listings/new", (req, res) => {
 //Show Route
 app.get("/listings/:id", async (req, res) => {
     let { id } = req.params;
-    const listing = await Listing.findById(id);
+    const listing = await Listing.findById(id).populate("reviews");
     res.render("listings/show.ejs", { listing });
   });
 
@@ -102,6 +104,37 @@ app.put("/listings/:id", async (req, res) => {
     console.log(deletedListing);
     res.redirect("/listings");
   });
+
+  /////Review Route
+  //////Post Route
+
+  app.post("/listings/:id/reviews", async (req,res) =>{
+    let listing = await Listing.findById(req.params.id);
+    let newReview = new Review(req.body.review);
+
+    listing.reviews.push(newReview);
+
+    await newReview.save();
+    await listing.save();
+
+    // console.log("new review saved");
+    // res.send("new review saved");
+
+    res.redirect(`/listings/${listing._id}`);
+
+  });
+
+  ////////////////Delete review Route
+
+app.delete("/listings/:id/reviews/:reviewId", async(req,res) =>{
+  let { id,reviewId } = req.params;
+
+  await Listing.findByIdAndUpdate(id, {$pull: {reviews: reviewId}});
+  await Review.findByIdAndDelete(reviewId);
+
+  res.redirect(`/listings/${id}`);
+});
+
 
 // app.get("/testListning",async(req,res) => {
 //     let sampleListing = new Listing({
