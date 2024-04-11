@@ -14,6 +14,7 @@ const flash = require("connect-flash");
 const passport = require("passport");
 const localStrategy = require("passport-local");
 const User = require("./models/user.js");
+const router = express.Router();
 
 
 
@@ -40,7 +41,7 @@ async function main() {
     await mongoose.connect(MONGO_URL);
 }
 
-///// for session
+///// for session 
 
 const sessionOptions = {
   secret: "mysupersecretstring", 
@@ -71,6 +72,8 @@ const validateListing = (req,res,next) =>{
   }
 }
 
+
+
 ///////////////////////// Flashhhh megg show//////////
 
 app.use(session(sessionOptions));
@@ -89,15 +92,35 @@ app.use((req,res,next) => {
   next();
 });
 
-app.get("/demouser", async(req,res) => {
-  let fakeUser = new User({
-    email:"student@gmail.com",
-    username: "delta-student",
-  });
+// app.get("/demouser", async(req,res) => {
+//   let fakeUser = new User({
+//     email:"student@gmail.com",
+//     username: "delta-student",
+//   });
 
-  let registeredUser = await User.register(fakeUser,"helloworld"); //// fakeuser----> user , helloworld-----> password
-  res.send(registeredUser);
+//   let registeredUser = await User.register(fakeUser,"helloworld"); //// fakeuser----> user , helloworld-----> password
+//   res.send(registeredUser);
+// });
+
+////////////// for signup 
+
+app.get("/signup", (req,res) => {
+  res.render("users/signup.ejs");
 });
+
+app.post("/signup", wrapAsync(async(req,res) =>{
+    try{
+    let {username,email,password} = req.body;
+    const newUser = new User ({ email,username});
+    const registeredUser = await User.register(newUser,password);
+    console.log(registeredUser);
+    req.flash("success", "Welcome to Wanderlust");
+    res.redirect("/listings");
+    }catch(e){
+    req.flash("error",e.message);
+    res.redirect('/signup');
+    }
+}));
 
 //Index Route
 app.get("/listings", async (req, res) => {
