@@ -9,6 +9,12 @@ const wrapAsync = require("./utils/wrapAsync.js");
 const ExpressError = require("./utils/ExpressError.js");
 const { listingSchema } = require("./schema.js");
 const Review = require("./models/review.js");
+const session = require("express-session");
+const flash = require("connect-flash");
+const passport = require("passport");
+const localStrategy = require("passport-local");
+const User = require("./models/user.js");
+
 
 
 
@@ -34,6 +40,22 @@ async function main() {
     await mongoose.connect(MONGO_URL);
 }
 
+///// for session
+
+const sessionOptions = {
+  secret: "mysupersecretstring", 
+  resave: false, 
+  saveUninitialized: true,
+  Cookie:{
+    expires: Date.now()+7*24*60*60*1000,
+    maxAge:7*24*60*60*1000,
+    httpOnly: true,
+  }
+  };
+
+
+
+
 app.get("/",(req,res)=>{
     res.send("Hi, I am root");
 });
@@ -48,6 +70,34 @@ const validateListing = (req,res,next) =>{
     next();
   }
 }
+
+///////////////////////// Flashhhh megg show//////////
+
+app.use(session(sessionOptions));
+app.use(flash());
+
+app.use(passport.initialize());
+app.use(passport.session());
+passport.use(new localStrategy(User.authenticate()));
+
+passport.serializeUser(User.serializeUser);
+passport.deserializeUser(User.deserializeUser);
+
+app.use((req,res,next) => {
+  res.locals.success = req.flash("success");
+  res.locals.error = req.flash("error");
+  next();
+});
+
+app.get("/demouser", async(req,res) => {
+  let fakeUser = new User({
+    email:"student@gmail.com",
+    username: "delta-student",
+  });
+
+  let registeredUser = await User.register(fakeUser,"helloworld"); //// fakeuser----> user , helloworld-----> password
+  res.send(registeredUser);
+});
 
 //Index Route
 app.get("/listings", async (req, res) => {
@@ -65,6 +115,10 @@ app.get("/listings/new", (req, res) => {
 app.get("/listings/:id", async (req, res) => {
     let { id } = req.params;
     const listing = await Listing.findById(id).populate("reviews");
+    if(!listing){
+      req.flash("error","Listing you requested for does not exist!");
+      res.redirect("/listings");
+    }
     res.render("listings/show.ejs", { listing });
   });
 
@@ -77,6 +131,7 @@ wrapAsync(async(req,res) =>{
 
     const newListing = new Listing (req.body.listing) ;
     await newListing.save();
+    req.flash("success","New Listing Created!");
     res.redirect("/listings");
   
   
@@ -87,6 +142,10 @@ wrapAsync(async(req,res) =>{
 app.get("/listings/:id/edit",async(req,res)=>{
     let { id } = req.params;
     const listing = await Listing.findById(id);
+    if(!listing){
+      req.flash("error","Listing you requested for does not exist!");
+      res.redirect("/listings");
+    }
     res.render("listings/edit.ejs",{listing});
 });
 
@@ -94,6 +153,8 @@ app.get("/listings/:id/edit",async(req,res)=>{
 app.put("/listings/:id", async (req, res) => {
     let { id } = req.params;
     await Listing.findByIdAndUpdate(id, { ...req.body.listing });
+    req.flash("success","Listing Updated!");
+
     res.redirect(`/listings/${id}`);
   });
   
@@ -102,6 +163,8 @@ app.put("/listings/:id", async (req, res) => {
     let { id } = req.params;
     let deletedListing = await Listing.findByIdAndDelete(id);
     console.log(deletedListing);
+    req.flash("success"," Listing Deleted!");
+
     res.redirect("/listings");
   });
 
@@ -116,6 +179,8 @@ app.put("/listings/:id", async (req, res) => {
 
     await newReview.save();
     await listing.save();
+    req.flash("success","New Review Created!");
+
 
     // console.log("new review saved");
     // res.send("new review saved");
@@ -131,6 +196,8 @@ app.delete("/listings/:id/reviews/:reviewId", async(req,res) =>{
 
   await Listing.findByIdAndUpdate(id, {$pull: {reviews: reviewId}});
   await Review.findByIdAndDelete(reviewId);
+
+  req.flash("success","Review Deleted!");
 
   res.redirect(`/listings/${id}`);
 });
