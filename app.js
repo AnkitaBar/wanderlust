@@ -12,9 +12,12 @@ const Review = require("./models/review.js");
 const session = require("express-session");
 const flash = require("connect-flash");
 const passport = require("passport");
-const localStrategy = require("passport-local");
+const LocalStrategy = require("passport-local");
 const User = require("./models/user.js");
-const router = express.Router();
+const { isLoggedIn } = require("./middleware.js")
+
+const userRouter = require("./routes/user.js");
+
 
 
 
@@ -79,18 +82,23 @@ const validateListing = (req,res,next) =>{
 app.use(session(sessionOptions));
 app.use(flash());
 
+
 app.use(passport.initialize());
 app.use(passport.session());
-passport.use(new localStrategy(User.authenticate()));
+passport.use(new LocalStrategy(User.authenticate()));
 
-passport.serializeUser(User.serializeUser);
-passport.deserializeUser(User.deserializeUser);
 
-app.use((req,res,next) => {
-  res.locals.success = req.flash("success");
-  res.locals.error = req.flash("error");
-  next();
+passport.serializeUser(User.serializeUser());  //------to serialize(store) users into the session--------//
+passport.deserializeUser(User.deserializeUser());  //------to deserialize(remove) users into the session--------//
+
+
+app.use((req, res, next)=>{
+    res.locals.success = req.flash("success");
+    res.locals.error = req.flash("error");
+    next();
 });
+
+app.use("/",userRouter);
 
 // app.get("/demouser", async(req,res) => {
 //   let fakeUser = new User({
@@ -102,25 +110,49 @@ app.use((req,res,next) => {
 //   res.send(registeredUser);
 // });
 
+
+
 ////////////// for signup 
 
-app.get("/signup", (req,res) => {
-  res.render("users/signup.ejs");
-});
+// app.get("/signup", (req,res) => {
+//   res.render("users/signup.ejs");
+// });
 
-app.post("/signup", wrapAsync(async(req,res) =>{
-    try{
-    let {username,email,password} = req.body;
-    const newUser = new User ({ email,username});
-    const registeredUser = await User.register(newUser,password);
-    console.log(registeredUser);
-    req.flash("success", "Welcome to Wanderlust");
-    res.redirect("/listings");
-    }catch(e){
-    req.flash("error",e.message);
-    res.redirect('/signup');
-    }
-}));
+// app.post("/signup", wrapAsync(async(req,res) =>{
+//     try{
+//     let {username,email,password} = req.body;
+//     const newUser = new User ({ email,username});
+//     const registeredUser = await User.register(newUser,password);
+//     console.log(registeredUser);
+//     req.flash("success", "Welcome to Wanderlust");
+//     res.redirect("/listings");
+//     }catch(e){
+//     req.flash("error",e.message);
+//     res.redirect('/signup');
+//     }
+// }));
+
+// /////////////////// login route
+
+// app.get("/login", (req,res) => {
+//   res.render("users/login.ejs");
+// });
+
+// app.post(
+//   "/login", 
+// passport.authenticate("local",{
+//   failureRedirect: "/login",
+//   failureFlash: true,
+// }),
+//     async(req,res) =>{
+//     //res.send("Welcome");
+//     req.flash("success","welcome back to Wanderlust!");
+//     res.redirect("/listings");
+    
+//   }
+// );
+
+
 
 //Index Route
 app.get("/listings", async (req, res) => {
@@ -129,7 +161,8 @@ app.get("/listings", async (req, res) => {
   });
 
 //New Route
-app.get("/listings/new", (req, res) => {
+app.get("/listings/new", isLoggedIn, (req, res) => {
+
     res.render("listings/new.ejs");
   });
 
@@ -148,6 +181,7 @@ app.get("/listings/:id", async (req, res) => {
 /////// Create route 
 app.post(
   "/listings",
+  isLoggedIn,
   validateListing,
 wrapAsync(async(req,res) =>{
 
@@ -162,7 +196,7 @@ wrapAsync(async(req,res) =>{
 );
 
 ///Edit route
-app.get("/listings/:id/edit",async(req,res)=>{
+app.get("/listings/:id/edit",isLoggedIn,async(req,res)=>{
     let { id } = req.params;
     const listing = await Listing.findById(id);
     if(!listing){
@@ -173,7 +207,7 @@ app.get("/listings/:id/edit",async(req,res)=>{
 });
 
 //Update Route
-app.put("/listings/:id", async (req, res) => {
+app.put("/listings/:id",isLoggedIn, async (req, res) => {
     let { id } = req.params;
     await Listing.findByIdAndUpdate(id, { ...req.body.listing });
     req.flash("success","Listing Updated!");
@@ -182,7 +216,7 @@ app.put("/listings/:id", async (req, res) => {
   });
   
   //Delete Route
-  app.delete("/listings/:id", async (req, res) => {
+  app.delete("/listings/:id", isLoggedIn,async (req, res) => {
     let { id } = req.params;
     let deletedListing = await Listing.findByIdAndDelete(id);
     console.log(deletedListing);
