@@ -95,6 +95,7 @@ passport.deserializeUser(User.deserializeUser());  //------to deserialize(remove
 app.use((req, res, next)=>{
     res.locals.success = req.flash("success");
     res.locals.error = req.flash("error");
+    res.locals.currUser = req.user;
     next();
 });
 
@@ -170,11 +171,12 @@ app.get("/listings/new", isLoggedIn, (req, res) => {
 //Show Route
 app.get("/listings/:id", async (req, res) => {
     let { id } = req.params;
-    const listing = await Listing.findById(id).populate("reviews");
+    const listing = await Listing.findById(id).populate("reviews").populate("owner");
     if(!listing){
       req.flash("error","Listing you requested for does not exist!");
       res.redirect("/listings");
     }
+    console.log(listing);
     res.render("listings/show.ejs", { listing });
   });
 
@@ -187,6 +189,7 @@ wrapAsync(async(req,res) =>{
 
 
     const newListing = new Listing (req.body.listing) ;
+    newListing.owner = req.user._id;
     await newListing.save();
     req.flash("success","New Listing Created!");
     res.redirect("/listings");

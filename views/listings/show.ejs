@@ -11,12 +11,19 @@
       <div class="card col-6 offset-3 show-card listing-card ">
         <img src="<%= listing.image %>" class="card-img-top show-img" alt="listing_image" >
         <div class="card-body">
-          <p class="card-text">
+          <p class="card-text">Owned by: <i><%= listing.owner.username %></i></p>
       
-            <%= listing.description %> <br>
-            &#8377; <%= listing.price %> <br>
+          <p class="card-text"><%= listing.description %> </p>
+          
+          <p class="card-text">
+            &#8377; <%= listing.price %> 
             <!-- conterted number into string with coma -->
-            <%= listing.location %> <br>
+          </p>
+          <p class="card-text">
+            <%= listing.location %> 
+            </p>
+            <br>
+            <p class="card-text">
             <%= listing.country %>
             </p>
         </div>
